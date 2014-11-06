@@ -32,18 +32,39 @@ include_directories(
 # Target: waffle (shared library)
 # ----------------------------------------------------------------------------
 
-set(waffle_libdeps
-    ${egl_LDFLAGS}
-    ${gbm_LDFLAGS}
-    ${gl_LDFLAGS}
-    ${libudev_LDFLAGS}
-    ${wayland-client_LDFLAGS}
-    ${wayland-egl_LDFLAGS}
-    ${x11_LDFLAGS}
-    ${x11-xcb_LDFLAGS}
-    ${xcb_LDFLAGS}
+list(APPEND waffle_libdeps
     ${THREADS_LIBRARIES}
     )
+
+if(waffle_on_linux)
+    if(waffle_has_egl)
+        list(APPEND waffle_libdeps
+            ${egl_LDFLAGS}
+            )
+    endif()
+    if(waffle_has_glx)
+        list(APPEND waffle_libdeps
+            ${gl_LDFLAGS}
+            )
+    endif()
+    if(waffle_has_wayland)
+        list(APPEND waffle_libdeps
+            ${wayland-client_LDFLAGS}
+            ${wayland-egl_LDFLAGS}
+            )
+    endif()
+    if(waffle_has_x11)
+        list(APPEND waffle_libdeps
+            ${x11-xcb_LDFLAGS}
+            )
+    endif()
+    if(waffle_has_gbm)
+        list(APPEND waffle_libdeps
+            ${gbm_LDFLAGS}
+            ${libudev_LDFLAGS}
+            )
+    endif()
+endif()
 
 set(waffle_sources
     api/api_priv.c
@@ -163,7 +184,7 @@ include_directories(
     )
 
 add_library(${waffle_libname} SHARED ${waffle_sources})
-target_link_libraries(${waffle_libname} ${waffle_libdeps})
+target_link_libraries(${waffle_libname} PRIVATE ${waffle_libdeps})
 
 set_target_properties(${waffle_libname}
     PROPERTIES
@@ -171,13 +192,6 @@ set_target_properties(${waffle_libname}
     SOVERSION ${waffle_soversion}
     VERSION ${waffle_soversion}.${waffle_minor_version}.${waffle_patch_version}
     )
-
-if(NOT waffle_on_mac)
-    set_target_properties(${waffle_libname}
-        PROPERTIES
-        LINK_INTERFACE_LIBRARIES ""
-        )
-endif()
 
 install(
     TARGETS ${waffle_libname}
@@ -232,6 +246,14 @@ function(add_unittest unittest_name)
         COMMAND "${CMAKE_BINARY_DIR}/tests/${unittest_name}"
     )
     add_dependencies(check ${unittest_name}_run)
+
+    if(VALGRIND_EXECUTABLE)
+        add_custom_target(valgrind_${unittest_name}_run
+            DEPENDS ${unittest_name}
+            COMMAND ${VALGRIND_EXECUTABLE} $<TARGET_FILE:${unittest_name}>
+        )
+        add_dependencies(valgrind-check valgrind_${unittest_name}_run)
+    endif()
 endfunction()
 
 add_unittest(wcore_attrib_list_unittest

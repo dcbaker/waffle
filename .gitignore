@@ -27,6 +27,7 @@ Makefile
 # Build Artifacts
 # ----------------------------------------------
 
+*.a
 *.so
 
 /bin/wflinfo
@@ -54,6 +55,7 @@ Makefile
 /examples/gl_basic
 /examples/simple-x11-egl
 /lib/
+/libcmocka.a
 /src/waffle/libwaffle_static.a
 /tests/functional/gl_basic_test
 /tests/waffle_test/libwaffle_test.dylib
