@@ -83,6 +83,9 @@ static const char *usage_message =
     "    --debug-context\n"
     "        Create a debug context.\n"
     "\n"
+    "    --json\n"
+    "        Print a JSON formatted summary.\n"
+    "\n"
     "    -h, --help\n"
     "        Print wflinfo usage information.\n"
     "\n"
@@ -102,6 +105,7 @@ enum {
     OPT_VERBOSE = 'v',
     OPT_DEBUG_CONTEXT,
     OPT_FORWARD_COMPATIBLE,
+    OPT_JSON,
     OPT_HELP = 'h',
 };
 
@@ -113,6 +117,7 @@ static const struct option get_opts[] = {
     { .name = "verbose",        .has_arg = no_argument,           .val = OPT_VERBOSE },
     { .name = "debug-context",  .has_arg = no_argument,           .val = OPT_DEBUG_CONTEXT },
     { .name = "forward-compatible", .has_arg = no_argument,       .val = OPT_FORWARD_COMPATIBLE },
+    { .name = "json",           .has_arg = no_argument,           .val = OPT_JSON },
     { .name = "help",           .has_arg = no_argument,           .val = OPT_HELP },
     { 0 },
 };
@@ -249,6 +254,8 @@ struct options {
     int context_minor;
 
     bool verbose;
+
+    bool json;
 
     bool context_forward_compatible;
     bool context_debug;
@@ -393,6 +400,9 @@ parse_args(int argc, char *argv[], struct options *opts)
             case OPT_DEBUG_CONTEXT:
                 opts->context_debug = true;
                 break;
+            case OPT_JSON:
+                opts->json = true;
+                break;
             case OPT_HELP:
                 write_usage_and_exit(stdout, EXIT_SUCCESS);
                 break;
@@ -529,6 +539,173 @@ print_context_flags(void)
     printf("\n");
     
     return;
+}
+
+static void
+json_print_context_flags(void)
+{
+    int flag_count = sizeof(flags) / sizeof(flags[0]);
+    GLint context_flags = 0;
+
+    printf("    \"context flags\": ");
+
+    glGetIntegerv(GL_CONTEXT_FLAGS, &context_flags);
+    if (glGetError() != GL_NO_ERROR) {
+        printf("\"WFLINFO_GL_ERROR\"\n");
+        return;
+    }
+
+    if (context_flags == 0) {
+        printf("\"0x0\"\n");
+        return;
+    }
+
+    printf("[\n");
+    for (int i = 0; i < flag_count; i++) {
+        if ((flags[i].flag & context_flags) != 0) {
+            printf("        \"%s\"", flags[i].str);
+            context_flags = context_flags & ~flags[i].flag;
+            if (i != flag_count) {
+                printf(",\n");
+            }
+        }
+    }
+    for (int i = 0; context_flags != 0; context_flags >>= 1, i++) {
+        if ((context_flags & 1) != 0) {
+            printf(",\n");
+            printf("        0x%x", 1 << i);
+        }
+    }
+    printf("    ]");
+    
+    return;
+}
+
+static void
+json_print_extensions(bool use_stringi)
+{
+    // Print extensions in JSON format
+    printf("    \"extensions\": [\n");
+    if (use_stringi) {
+        GLint count = 0, i;
+        const char *ext;
+
+        glGetIntegerv(GL_NUM_EXTENSIONS, &count);
+        if (glGetError() != GL_NO_ERROR) {
+            printf("\"WFLINFO_GL_ERROR\"");
+        } else {
+            for (i = 0; i < count; i++) {
+                ext = (const char *) glGetStringi(GL_EXTENSIONS, i);
+                if (glGetError() != GL_NO_ERROR)
+                    ext = "WFLINFO_GL_ERROR";
+                printf("        \"%s\"%s\n", ext, (i + 1) < count ? "," : "");
+            }
+        }
+    } else {
+        char *extensions = (char *) glGetString(GL_EXTENSIONS);
+        if (glGetError() != GL_NO_ERROR) {
+            printf("        \"WFLINFO_GL_ERROR\"");
+        } else {
+            char * splitter = strtok(extensions, " ");
+
+            // The JSON doesn't strictly need to be newline seperated, but
+            // it makes it much easier to read. Split the lines and add commas correctly
+            while(true) {
+                printf("       \"%s\"", splitter);
+                splitter = strtok(NULL, " ");
+
+                if (splitter != NULL) {
+                    printf(",\n");
+                } else {
+                    break;
+                }
+            }
+        }
+        printf("\n");
+    }
+    printf("    ]\n");
+}
+
+/// @brief Print JSON describing information about the context that was created.
+static bool
+print_json(const struct options *opts)
+{
+    while(glGetError() != GL_NO_ERROR) {
+        /* Clear all errors */
+    }
+
+    const char *vendor = (const char *) glGetString(GL_VENDOR);
+    if (glGetError() != GL_NO_ERROR || vendor == NULL) {
+        vendor = "WFLINFO_GL_ERROR";
+    }
+
+    const char *renderer = (const char *) glGetString(GL_RENDERER);
+    if (glGetError() != GL_NO_ERROR || renderer == NULL) {
+        renderer = "WFLINFO_GL_ERROR";
+    }
+
+    const char *version_str = (const char *) glGetString(GL_VERSION);
+    if (glGetError() != GL_NO_ERROR || version_str == NULL) {
+        version_str = "WFLINFO_GL_ERROR";
+    }
+
+    printf("{\n");
+
+    const char *platform = enum_map_to_str(platform_map, opts->platform);
+    assert(platform != NULL);
+
+    printf("    \"platform\": \"%s\",\n", platform);
+
+    const char *api = enum_map_to_str(context_api_map, opts->context_api);
+    assert(api != NULL);
+    printf("    \"api\": \"%s\",\n", api);
+
+    printf("    \"vendor\": \"%s\",\n", vendor);
+    printf("    \"renderer\": \"%s\",\n", renderer);
+    printf("    \"version\": \"%s\"", version_str);
+    // No comma is allowed on the last element.
+
+    int version = parse_version(version_str);
+
+    if (opts->context_api == WAFFLE_CONTEXT_OPENGL && version >= 31) {
+        printf(",\n");
+        json_print_context_flags();
+    }
+
+    // OpenGL and OpenGL ES >= 3.0 support glGetStringi(GL_EXTENSION, i).
+    const bool use_getstringi = version >= 30;
+
+    if (!glGetStringi && use_getstringi)
+        error_get_gl_symbol("glGetStringi");
+
+    if (opts->verbose) {
+        printf(",\n");
+        // There are two exceptional cases where wflinfo may not get a
+        // version (or a valid version): one is in gles1 and the other
+        // is GL < 2.0. In these cases do not return WFLINFO_GL_ERROR,
+        // return None. This is preferable to returning WFLINFO_GL_ERROR
+        // because it creates a consistant interface for parsers
+        const char *language_str = "None";
+        if ((opts->context_api == WAFFLE_CONTEXT_OPENGL && version >= 20) ||
+                opts->context_api == WAFFLE_CONTEXT_OPENGL_ES2 ||
+                opts->context_api == WAFFLE_CONTEXT_OPENGL_ES3) {
+            language_str = (const char *) glGetString(GL_SHADING_LANGUAGE_VERSION);
+            if (glGetError() != GL_NO_ERROR || language_str == NULL) {
+                language_str = "WFLINFO_GL_ERROR";
+            }
+        }
+
+        printf("    \"shading language version\": \"%s\",\n", language_str);
+
+        json_print_extensions(use_getstringi);
+
+    } else {
+        printf("\n");
+    }
+
+    printf("}\n");
+
+    return true;
 }
 
 /// @brief Print out information about the context that was created.
@@ -1122,7 +1299,11 @@ main(int argc, char **argv)
         glGetStringi = waffle_get_proc_address("glGetStringi");
     }
 
-    ok = print_wflinfo(&opts);
+    if (opts.json) {
+        ok = print_json(&opts);
+    } else {
+        ok = print_wflinfo(&opts);
+    }
     if (!ok)
         error_waffle();
 
