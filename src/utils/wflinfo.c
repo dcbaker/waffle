@@ -487,17 +487,18 @@ print_extensions(bool use_stringi)
     printf("\n");
 }
 
+static struct {
+    GLint flag;
+    char *str;
+} flags[] = {
+    { GL_CONTEXT_FLAG_FORWARD_COMPATIBLE_BIT, "FORWARD_COMPATIBLE" },
+    { GL_CONTEXT_FLAG_DEBUG_BIT, "DEBUG" },
+    { GL_CONTEXT_FLAG_ROBUST_ACCESS_BIT_ARB, "ROBUST_ACCESS" },
+};
+
 static void
 print_context_flags(void)
 {
-    static struct {
-        GLint flag;
-        char *str;
-    } flags[] = {
-        { GL_CONTEXT_FLAG_FORWARD_COMPATIBLE_BIT, "FORWARD_COMPATIBLE" },
-        { GL_CONTEXT_FLAG_DEBUG_BIT, "DEBUG" },
-        { GL_CONTEXT_FLAG_ROBUST_ACCESS_BIT_ARB, "ROBUST_ACCESS" },
-    };
     int flag_count = sizeof(flags) / sizeof(flags[0]);
     GLint context_flags = 0;
 
@@ -526,6 +527,8 @@ print_context_flags(void)
         }
     }
     printf("\n");
+    
+    return;
 }
 
 /// @brief Print out information about the context that was created.
