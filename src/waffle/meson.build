@@ -151,6 +151,19 @@ if build_wgl
   )
 endif
 
+if host_machine.system() == 'darwin'
+  files_libwaffle += files(
+    'cgl/cgl_config.m',
+    'cgl/cgl_context.m',
+    'cgl/cgl_display.m',
+    'cgl/cgl_dl.m',
+    'cgl/cgl_error.m',
+    'cgl/cgl_platform.m',
+    'cgl/cgl_window.m',
+    'cgl/WaffleGLView.m',
+  )
+endif
+
 include_libwaffle = include_directories(
   'android', 'api', 'cgl', 'core', 'egl', 'glx', 'linux', 'nacl',
   'surfaceless_egl', 'wayland', 'wgl', 'x11', 'xegl'

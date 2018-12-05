@@ -30,10 +30,15 @@ no_override_args = cc.first_supported_argument([
   '-Wno-override-init',
 ])
 
+files_gl_basic_test = files('gl_basic_test.c')
+if host_machine.system() == 'darwin'
+  files_gl_basci_test += files('gl_basic_cocoa.m')
+endif
+
 # TODO: mac: needs cocoa
 gl_basic_test = executable(
   'gl_basic_test',
-  ['gl_basic_test.c', waffle_config_h],
+  [files_gl_basic_test, waffle_config_h],
   c_args : [api_c_args, no_override_args],
   dependencies : [dep_cmocka, idep_getopt, ext_waffle],
   include_directories : inc_include,

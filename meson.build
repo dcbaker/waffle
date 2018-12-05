@@ -49,6 +49,10 @@ if build_nacl
   add_languages('cpp')
 endif
 
+if host_machine.system() == 'darwin'
+  add_languages('objc')
+endif
+
 # TODO: visual studio check
 
 cc = meson.get_compiler('c')
