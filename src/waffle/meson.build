@@ -38,6 +38,8 @@ deps_for_waffle = [
   dep_wayland_egl,
   dep_x11_xcb,
   dep_dl,
+  dep_cocoa,
+  dep_core_foundation,
   idep_threads,
 ]
 

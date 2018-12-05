@@ -40,6 +40,6 @@ endif
 
 executable(
   'gl_basic',
-  'gl_basic.c',
-  dependencies : ext_waffle,
+  'gl_basic.m',
+  dependencies : [ext_waffle, dep_core_foundation, dep_cocoa],
 )

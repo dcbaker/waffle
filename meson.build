@@ -68,6 +68,8 @@ dep_wayland_egl = _dep_null
 dep_x11_xcb = _dep_null
 dep_gbm = _dep_null
 dep_udev = _dep_null
+dep_cocoa = _dep_null
+dep_core_foundation = _dep_null
 
 # Get dependencies
 if build_wgl
@@ -77,7 +79,9 @@ if build_wgl
   dep_gl = cc.find_library('opengl32')
 elif host_machine.system() == 'darwin'
   # TODO: MacOS
-  error('Not yet implemented')
+  dep_cocoa = dependency('cocoa')
+  dep_core_foundation = dependency('corefoundation')
+  dep_gl = dependency('gl')
 else
   dep_gl = dependency('gl', required : get_option('glx'))
   dep_egl = dependency('egl', required : get_option('x11_egl'))
@@ -105,7 +109,7 @@ endif
 if ['windows', 'cygwin'].contains(host_machine.system())
     add_project_arguments('-DWAFFLE_HAS_WGL', language : ['c', 'cpp'])
 elif host_machine.system() == 'darwin'
-  error('Not yet implemented')
+    add_project_arguments('-DWAFFLE_HAS_CGL', language : ['c', 'obj'])
 else
   if build_x11_egl
     add_project_arguments('-DWAFFLE_HAS_X11_EGL', language : ['c', 'cpp'])

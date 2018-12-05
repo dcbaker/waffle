@@ -23,12 +23,19 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+if host_machine.system() == 'darwin'
+  files_wflinfo = files('wflinfo.m')
+else
+  files_wflinfo = files('wflinfo.c')
+endif
+
 if not build_nacl
   wflinfo = executable(
     'wflinfo',
-    'wflinfo.c',
+    files_wflinfo,
     include_directories : [inc_waffle, inc_include],
     link_with : libwaffle,
+    dependencies : [dep_cocoa],
     install : true,
   )
 endif
